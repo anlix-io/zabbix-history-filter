@@ -17,11 +17,11 @@ getTokenAuth = function(host, callback) {
         method: 'user.login',
         params: {
           user: 'admin',
-          password: 'gigalink'
+          password: 'gigalink',
         },
         id: 1,
-        auth: null
-      }
+        auth: null,
+      },
     },
     function(error, response, body) {
       if (error) {
@@ -46,30 +46,31 @@ getDevicesZabbixData = function(host, tokenAuth) {
         params: {
           output: 'shorten',
           filter: {
-            host: ['Template Openwrt']
+            host: ['Template Openwrt'],
           },
-          selectHosts : ["hostid","name"]
+          selectHosts: ['hostid', 'name'],
         },
         auth: tokenAuth,
-        id: 1
-      }
+        id: 1,
+      },
     },
     function(error, response, body) {
       if (error) {
-        console.log(error);  
+        console.log(error);
       } else {
         let deviceHosts = body.result[0].hosts;
-        for (idx in deviceHosts) {
-          let deviceOutData = {hostname: deviceHosts[idx].name};
-          getDeviceZabbixData(host, tokenAuth,
-                              deviceHosts[idx].hostid, deviceOutData);
-        }
+        deviceHosts.forEach((deviceHost, i)=>{
+          if (deviceHost.hostid == '10301') {
+            let deviceData = {hostname: deviceHost.name};
+            getDeviceZabbixData(host, tokenAuth, deviceHost.hostid, deviceData);
+          }
+        });
       }
     }
   );
 };
 
-getDeviceZabbixData = function(host, tokenAuth, deviceId, deviceOutData) {
+getDeviceZabbixData = function(host, tokenAuth, deviceId, deviceData) {
   let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
 
   request({
@@ -81,30 +82,30 @@ getDeviceZabbixData = function(host, tokenAuth, deviceId, deviceOutData) {
         params: {
           output: 'shorten',
           selectItems: ['itemid', 'key_', 'name'],
-          hostids: deviceId
+          hostids: deviceId,
         },
         id: 2,
-        auth: tokenAuth
-      }
+        auth: tokenAuth,
+      },
     },
     function(error, response, body) {
       if (error) {
-        console.log(error);  
+        console.log(error);
       } else {
         if (body.result) {
           let deviceItems = body.result[0].items;
-          for (idx in deviceItems) {
-            deviceOutData[deviceItems[idx].key_] = {};
-            getZabbixDataHistory(host, tokenAuth,
-                                 deviceId, deviceItems[idx], deviceOutData);
-          }
-        } 
+          deviceItems.forEach((deviceItem, i)=>{
+            deviceData[deviceItem.key_] = {};
+            getZabbixDataHistory(host, tokenAuth, deviceId, deviceItem,
+                                 deviceData);
+          });
+        }
       }
     }
   );
 };
 
-getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceOutData) {
+getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceData) {
   let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
   request({
       url: zabbixApiURL,
@@ -117,32 +118,31 @@ getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceOutData) 
           hostids: deviceId,
           itemids: item.itemid,
           time_from: timeFrom,
-          time_till: timeUntil
+          time_till: timeUntil,
         },
         auth: tokenAuth,
-        id: 1
-      }
+        id: 1,
+      },
     },
     function(error, response, body) {
       if (error) {
-        console.log(error);  
+        console.log(error);
       } else {
         let itemValues = body.result;
-        for (idx in itemValues) {
-          let sample = itemValues[idx];
-          deviceOutData[item.key_][sample.clock] = sample.value;
-        }
-        console.log(deviceOutData);
+        if (typeof itemValues === 'undefined') return;
+        itemValues.forEach((itemValue)=>{
+          deviceData[item.key_][itemValue.clock] = itemValue.value;
+        });
       }
     }
   );
 };
 
 main = function() {
-  getTokenAuth(zabbixHost, function(tokenAuth){
+  getTokenAuth(zabbixHost, function(tokenAuth) {
     getDevicesZabbixData(zabbixHost, tokenAuth);
   });
-}
+};
 
 // Run
 main();
