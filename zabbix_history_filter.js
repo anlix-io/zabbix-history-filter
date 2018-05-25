@@ -1,15 +1,17 @@
-
+const Promise = require('promise');
 const request = require('request');
 
 let zabbixHost = 'zabbixgui.gigalink.net.br';
+let tokenAuth = null;
+let zabbixData = {};
 
 let timeFrom = new Date(2018, 4, 4, 0, 0, 0).getTime() / 1000;
 let timeUntil = new Date(2018, 4, 4, 23, 59, 59).getTime() / 1000;
 
-getTokenAuth = function(host, callback) {
-  let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
-
-  request({
+getTokenAuth = function() {
+  let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
+  return new Promise((resolve, reject)=>{
+    request({
       url: zabbixApiURL,
       method: 'POST',
       json: {
@@ -23,21 +25,21 @@ getTokenAuth = function(host, callback) {
         auth: null,
       },
     },
-    function(error, response, body) {
+    (error, response, body)=>{
       if (error) {
-        console.log(error);
+        reject(error);
       } else {
-        let tokenAuth = body.result;
-        callback(tokenAuth);
+        resolve(body.result);
       }
-    }
-  );
+    });
+  });
 };
 
-getDevicesZabbixData = function(host, tokenAuth) {
-  let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
+getDevicesData = function() {
+  let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
 
-  request({
+  return new Promise((resolve, reject)=>{
+    request({
       url: zabbixApiURL,
       method: 'POST',
       json: {
@@ -54,26 +56,23 @@ getDevicesZabbixData = function(host, tokenAuth) {
         id: 1,
       },
     },
-    function(error, response, body) {
+    (error, response, body)=>{
       if (error) {
-        console.log(error);
-      } else {
-        let deviceHosts = body.result[0].hosts;
-        deviceHosts.forEach((deviceHost, i)=>{
-          if (deviceHost.hostid == '10301') {
-            let deviceData = {hostname: deviceHost.name};
-            getDeviceZabbixData(host, tokenAuth, deviceHost.hostid, deviceData);
-          }
-        });
+        reject(error);
+        return;
       }
-    }
-  );
+      if (!body.result) {
+        reject('No results in body: ' + body.toString());
+      }
+      resolve(body.result);
+    });
+  });
 };
 
-getDeviceZabbixData = function(host, tokenAuth, deviceId, deviceData) {
-  let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
-
-  request({
+getDeviceData = function(device) {
+  let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
+  return new Promise((resolve, reject)=>{
+    request({
       url: zabbixApiURL,
       method: 'POST',
       json: {
@@ -82,32 +81,46 @@ getDeviceZabbixData = function(host, tokenAuth, deviceId, deviceData) {
         params: {
           output: 'shorten',
           selectItems: ['itemid', 'key_', 'name'],
-          hostids: deviceId,
+          hostids: device.hostid,
         },
         id: 2,
         auth: tokenAuth,
       },
     },
-    function(error, response, body) {
+    (error, response, body)=>{
       if (error) {
-        console.log(error);
-      } else {
-        if (body.result) {
-          let deviceItems = body.result[0].items;
-          deviceItems.forEach((deviceItem, i)=>{
-            deviceData[deviceItem.key_] = {};
-            getZabbixDataHistory(host, tokenAuth, deviceId, deviceItem,
-                                 deviceData);
-          });
-        }
+        console.log('\nWARNING! Error on request for device data:');
+        console.log('Device: ' + device.name);
+        console.log(error + '\n');
+        resolve();
+        return;
       }
-    }
-  );
+      if (!body.result) {
+        console.log('\nWARNING! Error on request for device data:');
+        console.log('Device: ' + device.name);
+        console.log('No results in body: ' + body.toString() + '\n');
+        resolve();
+        return;
+      }
+      parseDeviceData(body.result, device).then(resolve, reject);
+    });
+  });
 };
 
-getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceData) {
-  let zabbixApiURL = 'https://' + host + '/api_jsonrpc.php';
-  request({
+parseDeviceData = function(result, device) {
+  let items = result[0].items;
+  let promises = [];
+  items.forEach((item, i)=>{
+    zabbixData[device.name][item.key_] = {'name': item.name};
+    promises.push(getDataHistory(device, item));
+  });
+  return Promise.all(promises);
+};
+
+getDataHistory = function(device, item) {
+  let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
+  return new Promise((resolve, reject)=>{
+    request({
       url: zabbixApiURL,
       method: 'POST',
       json: {
@@ -115,7 +128,7 @@ getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceData) {
         method: 'history.get',
         params: {
           output: 'extend',
-          hostids: deviceId,
+          hostids: device.hostid,
           itemids: item.itemid,
           time_from: timeFrom,
           time_till: timeUntil,
@@ -124,23 +137,54 @@ getZabbixDataHistory = function(host, tokenAuth, deviceId, item, deviceData) {
         id: 1,
       },
     },
-    function(error, response, body) {
+    (error, response, body)=>{
       if (error) {
-        console.log(error);
-      } else {
-        let itemValues = body.result;
-        if (typeof itemValues === 'undefined') return;
-        itemValues.forEach((itemValue)=>{
-          deviceData[item.key_][itemValue.clock] = itemValue.value;
-        });
+        console.log('\nWARNING! Error on request for data history:');
+        console.log('Device: ' + device.name);
+        console.log('Item: ' + item.name);
+        console.log(error + '\n');
+        resolve();
+        return;
       }
-    }
-  );
+      parseDataHistory(body.result, device, item);
+      resolve();
+    });
+  });
+};
+
+parseDataHistory = function(results, device, item) {
+  if (typeof results === 'undefined') return;
+  results.forEach((result, i)=>{
+    zabbixData[device.name][item.key_][result.clock] = result.value;
+  });
 };
 
 main = function() {
-  getTokenAuth(zabbixHost, function(tokenAuth) {
-    getDevicesZabbixData(zabbixHost, tokenAuth);
+  process.on('unhandledRejection', (reason)=>{
+    console.log(reason);
+  });
+
+  getTokenAuth()
+  .then((token)=>{
+    tokenAuth = token;
+    return getDevicesData();
+  })
+  .then((result)=>{
+    let promises = [];
+    let hosts = result[0].hosts;
+    hosts.forEach((host, i)=>{
+      if (host.hostid == '10301' || host.hostid == '10302') {
+        zabbixData[host.name] = {};
+        promises.push(getDeviceData(host));
+      }
+    });
+    return Promise.all(promises);
+  })
+  .then((results)=>{
+    console.log('Done');
+    console.log(zabbixData);
+  }, (reason)=>{
+    console.log(reason);
   });
 };
 
