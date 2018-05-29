@@ -222,14 +222,11 @@ main = function() {
     return getDevicesData();
   })
   .then((result)=>{
-    let promises = [];
-    let hosts = result[0].hosts;
-    hosts.forEach((host, i)=>{
-      // if (host.hostid !== '10354') return;
+    let hosts = result[0].hosts.splice(0, 1);
+    return hosts.reduce((p, host, i)=>{
       zabbixData[host.name] = {};
-      promises.push(getDeviceData(host));
-    });
-    return Promise.all(promises);
+      return p.then(() => getDeviceData(host));
+    }, Promise.resolve());
   })
   .then((results)=>{
     console.log('Writing result to file...');
