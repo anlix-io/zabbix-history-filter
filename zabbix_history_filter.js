@@ -222,7 +222,7 @@ main = function() {
     return getDevicesData();
   })
   .then((result)=>{
-    let hosts = result[0].hosts.splice(0, 1);
+    let hosts = result[0].hosts;
     return hosts.reduce((p, host, i)=>{
       zabbixData[host.name] = {};
       return p.then(() => getDeviceData(host));
