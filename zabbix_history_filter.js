@@ -168,13 +168,13 @@ parseDataHistory = function(results, device, item) {
   });
 };
 
-writeCSVFiles = function(metrics, data) {
+writeCSVFiles = function(metrics, data, targetDir) {
   for (let metric in metrics) {
     if (!Object.prototype.hasOwnProperty.call(metrics, metric)) continue;
     let fsMetric = metric.replace(/\[/g, '(');
     fsMetric = fsMetric.replace(/\]/g, ')');
     fsMetric = fsMetric.replace(/\//g, ';');
-    let file = fs.createWriteStream(fsMetric + '.csv');
+    let file = fs.createWriteStream(targetDir + '/' + fsMetric + '.csv');
     file.once('open', ()=>{
       file.write('mac,timestamp,value\n');
       for (let mac in data) {
@@ -232,6 +232,10 @@ main = function() {
   }
   timeFrom = new Date(year, month-1, day, 0, 0, 0).getTime() / 1000;
   timeUntil = new Date(year, month-1, day, 23, 59, 59).getTime() / 1000;
+  let targetDir = './' + year + '-' + month + '-' + day;
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir);
+  }
 
   process.on('unhandledRejection', (reason)=>{
     console.log(reason);
@@ -251,11 +255,12 @@ main = function() {
   })
   .then((results)=>{
     console.log('Writing result to file...');
-    fs.writeFile('./resultData.json', JSON.stringify(zabbixData), (err)=>{
+    fs.writeFile(targetDir + '/resultData.json',
+                 JSON.stringify(zabbixData), (err)=>{
       if (err) console.log(err);
     });
     console.log('Writing csv files...');
-    writeCSVFiles(metrics, zabbixData);
+    writeCSVFiles(metrics, zabbixData, targetDir);
     console.log('Done');
   }, (reason)=>{
     console.log(reason);
