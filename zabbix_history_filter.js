@@ -2,13 +2,15 @@ const fs = require('fs');
 const Promise = require('promise');
 const request = require('request');
 
-let zabbixHost = 'zabbixgui.gigalink.net.br';
 let tokenAuth = null;
 let zabbixData = {};
 let metrics = {};
 
-let timeFrom = new Date(2018, 4, 4, 0, 0, 0).getTime() / 1000;
-let timeUntil = new Date(2018, 4, 4, 23, 59, 59).getTime() / 1000;
+let username = null;
+let password = null;
+let timeFrom = null;
+let timeUntil = null;
+let zabbixHost = null;
 
 getTokenAuth = function() {
   let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
@@ -20,8 +22,8 @@ getTokenAuth = function() {
         jsonrpc: '2.0',
         method: 'user.login',
         params: {
-          user: 'admin',
-          password: 'gigalink',
+          user: username,
+          password: password,
         },
         id: 1,
         auth: null,
@@ -212,6 +214,25 @@ writeCSVFiles = function(metrics, data) {
 };
 
 main = function() {
+  if (process.argv.length !== 8) {
+    console.log('Usage: node zabbix_history_filter.js ' +
+                '<hostname> <user> <passwrd> <day> <month> <year>');
+    console.log(process.argv);
+    return;
+  }
+  zabbixHost = process.argv[2];
+  username = process.argv[3];
+  password = process.argv[4];
+  let day = parseInt(process.argv[5]);
+  let month = parseInt(process.argv[6]);
+  let year = parseInt(process.argv[7]);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) {
+    console.log('Error: Day, month and year must be numbers');
+    return;
+  }
+  timeFrom = new Date(year, month-1, day, 0, 0, 0).getTime() / 1000;
+  timeUntil = new Date(year, month-1, day, 23, 59, 59).getTime() / 1000;
+
   process.on('unhandledRejection', (reason)=>{
     console.log(reason);
   });
