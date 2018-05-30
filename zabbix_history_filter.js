@@ -174,7 +174,7 @@ writeCSVFiles = function(metrics, data) {
     let fsMetric = metric.replace(/\[/g, '(');
     fsMetric = fsMetric.replace(/\]/g, ')');
     fsMetric = fsMetric.replace(/\//g, ';');
-    let file = fs.createWriteStream('output/' + fsMetric + '.csv');
+    let file = fs.createWriteStream(fsMetric + '.csv');
     file.once('open', ()=>{
       file.write('mac,timestamp,value\n');
       for (let mac in data) {
