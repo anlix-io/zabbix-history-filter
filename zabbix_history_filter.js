@@ -190,7 +190,7 @@ writeCSVFiles = function(metrics, data, targetDir) {
       file.end();
     });
   }
-  let file = fs.createWriteStream('output/dhcp-hosts.csv');
+  let file = fs.createWriteStream(targetDir + '/dhcp-hosts.csv');
   file.once('open', ()=>{
     file.write('mac,lease_name,lease_mac,timestamp,tx_value\n');
     for (let mac in data) {
