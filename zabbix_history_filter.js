@@ -1,4 +1,5 @@
 const fs = require('fs');
+const shelljs = require('shelljs');
 const Promise = require('promise');
 const request = require('request');
 
@@ -232,9 +233,9 @@ main = function() {
   }
   timeFrom = new Date(year, month-1, day, 0, 0, 0).getTime() / 1000;
   timeUntil = new Date(year, month-1, day, 23, 59, 59).getTime() / 1000;
-  let targetDir = './' + year + '-' + month + '-' + day;
+  let targetDir = './out/' + year + '-' + month + '-' + day;
   if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir);
+    shelljs.mkdir('-p', targetDir);
   }
 
   process.on('unhandledRejection', (reason)=>{

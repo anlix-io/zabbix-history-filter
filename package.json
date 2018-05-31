@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "promise": "^8.0.1",
-    "request": "^2.85.0"
+    "request": "^2.85.0",
+    "shelljs": "^0.8.2"
   }
 }
