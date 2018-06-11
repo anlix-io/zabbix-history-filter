@@ -258,13 +258,13 @@ main = function() {
     }, Promise.resolve());
   })
   .then((results)=>{
-    console.log('Writing result to file...');
-    try {
-      fs.writeFileSync(targetDir + '/resultData.json',
-                       JSON.stringify(zabbixData));
-    } catch (err) {
-      console.log(err);
-    }
+    // console.log('Writing result to file...');
+    // try {
+    //   fs.writeFileSync(targetDir + '/resultData.json',
+    //                    JSON.stringify(zabbixData));
+    // } catch (err) {
+    //   console.log(err);
+    // }
     console.log('Writing csv files...');
     writeCSVFiles(metrics, zabbixData, targetDir);
     console.log('Done');
