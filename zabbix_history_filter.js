@@ -251,15 +251,20 @@ main = function() {
     let hosts = result[0].hosts;
     return hosts.reduce((p, host, i)=>{
       zabbixData[host.name] = {};
-      return p.then(() => getDeviceData(host));
+      return p.then(() => {
+        console.log('Fetching data for client %d / %d', i, hosts.length);
+        getDeviceData(host);
+      });
     }, Promise.resolve());
   })
   .then((results)=>{
     console.log('Writing result to file...');
-    fs.writeFile(targetDir + '/resultData.json',
-                 JSON.stringify(zabbixData), (err)=>{
-      if (err) console.log(err);
-    });
+    try {
+      fs.writeFileSync(targetDir + '/resultData.json',
+                       JSON.stringify(zabbixData));
+    } catch (err) {
+      console.log(err);
+    }
     console.log('Writing csv files...');
     writeCSVFiles(metrics, zabbixData, targetDir);
     console.log('Done');
