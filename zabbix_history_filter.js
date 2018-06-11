@@ -169,9 +169,8 @@ parseDataHistory = function(results, device, item) {
   });
 };
 
-writeCSVFiles = function(metrics, data, targetDir) {
-  for (let metric in metrics) {
-    if (!Object.prototype.hasOwnProperty.call(metrics, metric)) continue;
+writeCSVFile = function(metric, data, targetDir) {
+  return new Promise((resolve, reject)=>{
     let fsMetric = metric.replace(/\[/g, '(');
     fsMetric = fsMetric.replace(/\]/g, ')');
     fsMetric = fsMetric.replace(/\//g, ';');
@@ -189,28 +188,43 @@ writeCSVFiles = function(metrics, data, targetDir) {
         }
       }
       file.end();
+      resolve();
     });
-  }
-  let file = fs.createWriteStream(targetDir + '/dhcp-hosts.csv');
-  file.once('open', ()=>{
-    file.write('mac,lease_name,lease_mac,timestamp,tx_value\n');
-    for (let mac in data) {
-      if (!Object.prototype.hasOwnProperty.call(data, mac)) continue;
-      for (let key in data[mac]) {
-        if (!Object.prototype.hasOwnProperty.call(data[mac], key)) continue;
-        if (!key.match(/dhcpd.hosts.tx/)) continue;
-        for (let clock in data[mac][key]) {
-          if (Object.prototype.hasOwnProperty.call(data[mac][key], clock)) {
-            if (clock === 'name') continue;
-            file.write(mac + ',');
-            file.write(data[mac][key]['name'] + ',');
-            file.write(key.substr(15, 17) + ',');
-            file.write(clock + ',');
-            file.write(data[mac][key][clock] + '\n');
+  });
+};
+
+writeCSVFiles = function(metrics, data, targetDir) {
+  return metrics.reduce((p, metric, i)=>{
+    return p.then(() => {
+      console.log('Writing CSV file %d / %d', i, metrics.length - 1);
+      return writeCSVFile(metric, data, targetDir);
+    });
+  }, Promise.resolve()).then((result) => {
+    return new Promise((resolve, reject)=>{
+      let file = fs.createWriteStream(targetDir + '/dhcp-hosts.csv');
+      file.once('open', ()=>{
+        file.write('mac,lease_name,lease_mac,timestamp,tx_value\n');
+        for (let mac in data) {
+          if (!Object.prototype.hasOwnProperty.call(data, mac)) continue;
+          for (let key in data[mac]) {
+            if (!Object.prototype.hasOwnProperty.call(data[mac], key)) continue;
+            if (!key.match(/dhcpd.hosts.tx/)) continue;
+            for (let clock in data[mac][key]) {
+              if (Object.prototype.hasOwnProperty.call(data[mac][key], clock)) {
+                if (clock === 'name') continue;
+                file.write(mac + ',');
+                file.write(data[mac][key]['name'] + ',');
+                file.write(key.substr(15, 17) + ',');
+                file.write(clock + ',');
+                file.write(data[mac][key][clock] + '\n');
+              }
+            }
           }
         }
-      }
-    }
+        file.end();
+        resolve();
+      });
+    });
   });
 };
 
@@ -252,7 +266,7 @@ main = function() {
     return hosts.reduce((p, host, i)=>{
       zabbixData[host.name] = {};
       return p.then(() => {
-        console.log('Fetching data for client %d / %d', i, hosts.length);
+        console.log('Fetching data for client %d / %d', i, hosts.length - 1);
         return getDeviceData(host);
       });
     }, Promise.resolve());
@@ -266,7 +280,9 @@ main = function() {
     //   console.log(err);
     // }
     console.log('Writing csv files...');
-    writeCSVFiles(metrics, zabbixData, targetDir);
+    return writeCSVFiles(metrics, zabbixData, targetDir);
+  })
+  .then((results)=>{
     console.log('Done');
   }, (reason)=>{
     console.log(reason);
