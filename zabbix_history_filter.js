@@ -253,7 +253,7 @@ main = function() {
       zabbixData[host.name] = {};
       return p.then(() => {
         console.log('Fetching data for client %d / %d', i, hosts.length);
-        getDeviceData(host);
+        return getDeviceData(host);
       });
     }, Promise.resolve());
   })
