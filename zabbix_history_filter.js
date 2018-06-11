@@ -5,7 +5,7 @@ const request = require('request');
 
 let tokenAuth = null;
 let zabbixData = {};
-let metrics = {};
+let metrics = new Set();
 
 let username = null;
 let password = null;
@@ -118,7 +118,7 @@ parseDeviceData = function(result, device) {
   let promises = [];
   items.forEach((item, i)=>{
     if (!item.key_.match(/dhcpd.hosts.tx/)) {
-      metrics[item.key_] = true;
+      metrics.add(item.key_);
     }
     zabbixData[device.name][item.key_] = {'name': item.name};
     promises.push(getDataHistory(device, item));
