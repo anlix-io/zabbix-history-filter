@@ -209,6 +209,7 @@ writeCSVFiles = function(metrics, data, targetDir) {
         for (let mac in data) {
           if (!Object.prototype.hasOwnProperty.call(data, mac)) continue;
           console.log('Writing dhcp data for client %d / %d', count, macCount);
+          count++;
           for (let key in data[mac]) {
             if (!Object.prototype.hasOwnProperty.call(data[mac], key)) continue;
             if (!key.match(/dhcpd.hosts.tx/)) continue;
