@@ -280,6 +280,7 @@ main = function() {
     //   console.log(err);
     // }
     console.log('Writing csv files...');
+    metrics = Array.from(metrics);
     return writeCSVFiles(metrics, zabbixData, targetDir);
   })
   .then((results)=>{
