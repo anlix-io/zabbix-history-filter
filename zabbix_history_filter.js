@@ -204,29 +204,50 @@ writeCSVFiles = function(metrics, data, targetDir) {
       let file = fs.createWriteStream(targetDir + '/dhcp-hosts.csv');
       file.once('open', ()=>{
         file.write('mac,lease_name,lease_mac,timestamp,tx_value\n');
-        let macCount = Object.keys(data).length;
-        let count = 1;
-        for (let mac in data) {
-          if (!Object.prototype.hasOwnProperty.call(data, mac)) continue;
-          console.log('Writing dhcp data for client %d / %d', count, macCount);
-          count++;
-          for (let key in data[mac]) {
-            if (!Object.prototype.hasOwnProperty.call(data[mac], key)) continue;
-            if (!key.match(/dhcpd.hosts.tx/)) continue;
-            for (let clock in data[mac][key]) {
-              if (Object.prototype.hasOwnProperty.call(data[mac][key], clock)) {
-                if (clock === 'name') continue;
-                file.write(mac + ',');
-                file.write(data[mac][key]['name'] + ',');
-                file.write(key.substr(15, 17) + ',');
-                file.write(clock + ',');
-                file.write(data[mac][key][clock] + '\n');
-              }
+        let count = Object.keys(data).length;
+        let i = j = k = 0;
+        let macList = Object.keys(data);
+        let keyList = null;
+        let clockList = null;
+        let lastPrint = -1;
+        const writerFunc = function() {
+          let result = true;
+          for (; i < count; i++) {
+            if (i > lastPrint) {
+              lastPrint = i;
+              console.log('Writing dhcp data for client %d / %d', i, count - 1);
             }
+            keyList = Object.keys(data[macList[i]]);
+            for (; j < keyList.length; j++) {
+              if (!keyList[j].match(/dhcpd.hosts.tx/)) continue;
+              clockList = Object.keys(data[macList[i]][keyList[j]]);
+              for (; k < clockList.length; k++) {
+                if (clockList[k] === 'name') continue;
+                if (!result) break;
+                result &= file.write(macList[i] + ',');
+                result &= file.write(
+                  data[macList[i]][keyList[j]]['name'] + ','
+                );
+                result &= file.write(keyList[j].substr(15, 17) + ',');
+                result &= file.write(clockList[k] + ',');
+                result &= file.write(
+                  data[macList[i]][keyList[j]][clockList[k]] + '\n'
+                );
+              }
+              if (!result) break;
+              k = 0;
+            }
+            if (!result) break;
+            j = 0;
           }
-        }
-        file.end();
-        resolve();
+          if (result) {
+            file.end();
+            resolve();
+          } else {
+            file.once('drain', writerFunc);
+          }
+        };
+        writerFunc();
       });
     });
   });
