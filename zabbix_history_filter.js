@@ -137,8 +137,10 @@ getDataHistory = function(device, item) {
         method: 'history.get',
         params: {
           output: 'extend',
-          hostids: device.hostid,
-          itemids: item.itemid,
+          filter: {
+            host: [device.hostid],
+            itemid: [item.itemid],
+          },
           time_from: timeFrom,
           time_till: timeUntil,
         },
