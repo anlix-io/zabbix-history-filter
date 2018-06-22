@@ -2,6 +2,7 @@ const fs = require('fs');
 const shelljs = require('shelljs');
 const Promise = require('promise');
 const request = require('request');
+const metricToHistory = require('./metric_to_history');
 
 let tokenAuth = null;
 let zabbixData = {};
@@ -128,6 +129,9 @@ parseDeviceData = function(result, device) {
 
 getDataHistory = function(device, item) {
   let zabbixApiURL = 'https://' + zabbixHost + '/api_jsonrpc.php';
+  let historyParam = (Object.keys(metricToHistory).includes(item.key_)) ?
+                     metricToHistory[item.key_] :
+                     3;
   return new Promise((resolve, reject)=>{
     request({
       url: zabbixApiURL,
@@ -137,6 +141,7 @@ getDataHistory = function(device, item) {
         method: 'history.get',
         params: {
           output: 'extend',
+          history: historyParam,
           filter: {
             host: [device.hostid],
             itemid: [item.itemid],
